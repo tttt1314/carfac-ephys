@@ -14,3 +14,9 @@ def load_reference() -> dict[str, Any]:
   """
   path = files("carfac_ephys").joinpath("data", "dewey_dpoae_reference.json")
   return json.loads(path.read_text(encoding="utf-8"))
+
+
+def load_distortion_reference() -> dict[str, Any]:
+  """Load every jointly clean Dewey D observation with original MAT indices."""
+  path = files("carfac_ephys").joinpath("data", "dewey_dpoae_distortion_full.json")
+  return json.loads(path.read_text(encoding="utf-8"))

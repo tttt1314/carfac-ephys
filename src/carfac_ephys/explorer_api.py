@@ -3,6 +3,7 @@
 import hashlib
 import html
 import io
+import json
 import math
 import threading
 import uuid
@@ -33,13 +34,15 @@ from carfac_ephys.explorer import (
   run_benchmark,
   run_comparison,
 )
-from carfac_ephys.oae_reference import load_reference
+from carfac_ephys.oae_reference import load_distortion_reference, load_reference
+from carfac_ephys.path_comparison import PathComparisonRequest, run_path_comparison
 
 MAX_UPLOAD_BYTES = 16 * 1024**2
 MAX_UPLOAD_DURATION_S = 600
 MAX_UPLOADS = 4
 MAX_RESULTS = 4
 DEFAULT_FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+DEFAULT_RESULTS_DIR = Path(__file__).resolve().parents[2] / "output" / "explorer"
 
 
 def _audio_metadata(content: bytes) -> dict[str, Any]:
@@ -104,12 +107,44 @@ def prepare_audio_excerpt(content: bytes, stimulus: AudioStimulus) -> np.ndarray
   return wave * (constants.db_spl_to_amplitude(stimulus.level_db_spl) / rms)
 
 
-def create_app(frontend_dir: Path | None = None) -> FastAPI:
+def create_app(frontend_dir: Path | None = None, results_dir: Path | None = None) -> FastAPI:
   """Build a local explorer application with bounded in-memory results."""
   uploads: OrderedDict[str, tuple[bytes, dict[str, Any]]] = OrderedDict()
   runs: OrderedDict[str, dict[str, Any]] = OrderedDict()
   lock = threading.Lock()
   executor: ThreadPoolExecutor | None = None
+  storage = DEFAULT_RESULTS_DIR if results_dir is None else results_dir
+  latest_path = storage / "path-comparison-latest.json"
+
+  def read_latest() -> dict[str, Any] | None:
+    """Recover the latest completed comparison without starting any simulation."""
+    try:
+      record = json.loads(latest_path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+      return None
+    except (OSError, ValueError) as error:
+      raise HTTPException(503, "The saved path comparison cannot be read.") from error
+    if (
+      not isinstance(record, dict)
+      or record.get("status") != "complete"
+      or not isinstance(record.get("result"), dict)
+      or record["result"].get("kind") != "path_comparison"
+      or not isinstance(record.get("id"), str)
+    ):
+      raise HTTPException(503, "The saved path comparison is invalid.")
+    return record
+
+  def save_latest(record: dict[str, Any]) -> None:
+    """Atomically replace the previous completed comparison after success only."""
+    storage.mkdir(parents=True, exist_ok=True)
+    temporary = storage / f".path-comparison-{record['id']}.tmp"
+    try:
+      temporary.write_text(
+        json.dumps(record, ensure_ascii=False, allow_nan=False), encoding="utf-8"
+      )
+      temporary.replace(latest_path)
+    finally:
+      temporary.unlink(missing_ok=True)
 
   @asynccontextmanager
   async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -167,12 +202,21 @@ def create_app(frontend_dir: Path | None = None) -> FastAPI:
           record.update(status="running", message="Starting simulation.")
         try:
           result = operation(report)
+          completed = {
+            **record,
+            "status": "complete",
+            "progress": 1.0,
+            "message": "Complete.",
+            "result": result,
+          }
+          if kind == "path_comparison":
+            save_latest(completed)
         except Exception as error:
           with lock:
             record.update(status="error", message="Simulation failed.", error=str(error))
         else:
           with lock:
-            record.update(status="complete", progress=1.0, message="Complete.", result=result)
+            record.update(completed)
 
       executor.submit(execute)
     return {"id": identifier}
@@ -212,13 +256,33 @@ def create_app(frontend_dir: Path | None = None) -> FastAPI:
     """Schedule a validated reference comparison on the same sole worker."""
     return submit("benchmark", lambda progress: run_benchmark(request, progress=progress))
 
+  @app.post("/api/path-comparisons", status_code=202)
+  def start_path_comparison(request: PathComparisonRequest) -> dict[str, str]:
+    """Compare four paths from frozen sources with predeclared held-out bands."""
+    return submit(
+      "path_comparison", lambda progress: run_path_comparison(request, progress=progress)
+    )
+
+  @app.get("/api/path-comparisons/reference")
+  def path_reference() -> dict[str, Any]:
+    """Expose all clean observations, including the original MAT provenance."""
+    return load_distortion_reference()
+
+  @app.get("/api/path-comparisons/latest")
+  def latest_path_comparison() -> dict[str, Any] | None:
+    """Restore the last completed comparison after a browser or server restart."""
+    return read_latest()
+
   @app.get("/api/runs/{identifier}")
   def get_run(identifier: str) -> dict[str, Any]:
     """Return a stable status snapshot and a result only after completion."""
     with lock:
-      if identifier not in runs:
-        raise HTTPException(404, "Simulation result not found.")
-      return dict(runs[identifier])
+      if identifier in runs:
+        return dict(runs[identifier])
+    saved = read_latest()
+    if saved is not None and saved["id"] == identifier:
+      return saved
+    raise HTTPException(404, "Simulation result not found.")
 
   @app.get("/api/runs/{identifier}/export")
   def export_run(identifier: str) -> JSONResponse:
@@ -272,6 +336,7 @@ def create_app(frontend_dir: Path | None = None) -> FastAPI:
       "max_upload_duration_s": MAX_UPLOAD_DURATION_S,
       "defaults": RunRequest().model_dump(),
       "benchmark_defaults": BenchmarkRequest().model_dump(),
+      "path_comparison_defaults": PathComparisonRequest().model_dump(),
       "model": {
         "dtype": "float64",
         "agc_decimation": [1, 1, 1, 1],

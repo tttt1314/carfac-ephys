@@ -120,6 +120,112 @@ def test_no_ohc_health_removes_nonlinear_source_but_keeps_forward_response(setup
   assert np.max(np.abs(result.ear_canal)) == 0
 
 
+@pytest.fixture(scope="module")
+def propagation_setup():
+  with jax.enable_x64():
+    model = DifferentiableOae(fs=16000)
+    parameters = model.parameters(jnp.float64)._replace(
+      source_coupling=jnp.linspace(0.03, 0.12, model.n_channels),
+      middle_ear_gain=jnp.asarray(1.7),
+    )
+  sources = np.zeros((8192, model.n_channels))
+  sources[0, 5] = 1.0
+  sources[17:145, [0, 13, 30]] = np.random.default_rng(21).normal(0, 0.02, (128, 3))
+  return model, parameters, sources
+
+
+def _analytic_propagated_spectrum(model, parameters, sources, variant):
+  # Evaluate the declared continuous prototypes via s=2fs*(1-z^-1)/(1+z^-1),
+  # independently of the implementation's digital coefficients and time scans.
+  delay = np.exp(-2j * np.pi * np.arange(len(sources) // 2 + 1) / len(sources))
+  minus, plus = 1 - delay, 1 + delay
+  rate = 2 * model.fs
+  spectrum = np.fft.rfft(sources, axis=0)
+  total = np.zeros(len(delay), dtype=complex)
+  transfer = np.ones(len(delay), dtype=complex)
+  for channel, cf in enumerate(np.asarray(model.cfs)):
+    if variant in {"filter_only", "full"}:
+      cutoff = rate * np.tan(np.pi * cf / model.fs)
+      transfer *= (
+        cutoff**2
+        * plus**2
+        / (
+          rate**2 * minus**2
+          + cutoff / float(parameters.reverse_q) * rate * minus * plus
+          + cutoff**2 * plus**2
+        )
+      )
+    channel_delay = delay**channel if variant in {"delay_only", "full"} else 1
+    total += (
+      float(parameters.source_coupling[channel]) * transfer * channel_delay * spectrum[:, channel]
+    )
+  ratio, load, area = 20.0, 1.2 * 343 / 6e-5, 3e-6
+  mass, stiffness, damping = 3e-6, 100.0, 0.003
+  middle = (
+    ratio
+    * load
+    * area**2
+    * rate
+    * minus
+    * plus
+    / (
+      mass * rate**2 * minus**2
+      + (damping + ratio**2 * load * area**2) * rate * minus * plus
+      + stiffness * plus**2
+    )
+  )
+  return float(parameters.middle_ear_gain) * middle * total
+
+
+@pytest.mark.parametrize("variant", ["direct_sum", "delay_only", "filter_only", "full"])
+def test_propagation_variants_match_analytic_multichannel_transfer(propagation_setup, variant):
+  model, parameters, sources = propagation_setup
+  with jax.enable_x64():
+    output = jax.jit(lambda source: model.propagate_sources(source, parameters, variant=variant))(
+      jnp.asarray(sources)
+    )
+  expected = _analytic_propagated_spectrum(model, parameters, sources, variant)
+  actual = np.fft.rfft(output)
+  assert np.linalg.norm(actual - expected) / np.linalg.norm(expected) < 1e-9
+
+
+def test_full_variant_preserves_default_propagation(propagation_setup):
+  model, parameters, sources = propagation_setup
+  with jax.enable_x64():
+    wave = jnp.asarray(sources)
+    legacy = jax.jit(model.propagate_sources)(wave, parameters)
+    explicit = jax.jit(lambda source: model.propagate_sources(source, parameters, variant="full"))(
+      wave
+    )
+  np.testing.assert_array_equal(explicit, legacy)
+
+
+@pytest.mark.parametrize("variant", ["direct_sum", "delay_only", "filter_only", "full"])
+def test_propagation_variants_are_causal_with_declared_hop_delays(propagation_setup, variant):
+  model, parameters, _ = propagation_setup
+  onset, channel = 3, 7
+  with jax.enable_x64():
+    source = jnp.zeros((256, model.n_channels)).at[onset, channel].set(1.0)
+    output = jax.jit(lambda source: model.propagate_sources(source, parameters, variant=variant))(
+      source
+    )
+  expected_onset = onset + (channel if variant in {"delay_only", "full"} else 0)
+  np.testing.assert_array_equal(output[:expected_onset], 0)
+  assert abs(float(output[expected_onset])) > 0
+
+
+@pytest.mark.parametrize("variant", ["direct_sum", "delay_only", "filter_only", "full"])
+def test_propagation_variants_emit_zero_without_sources_or_coupling(propagation_setup, variant):
+  model, parameters, sources = propagation_setup
+  with jax.enable_x64():
+    propagate = jax.jit(lambda source, p: model.propagate_sources(source, p, variant=variant))
+    source = jnp.asarray(sources[:256])
+    silent = propagate(jnp.zeros_like(source), parameters)
+    uncoupled = propagate(source, parameters._replace(source_coupling=jnp.zeros(model.n_channels)))
+  np.testing.assert_array_equal(silent, 0)
+  np.testing.assert_array_equal(uncoupled, 0)
+
+
 def test_reverse_impulse_matches_analytic_chain_and_propagation_delay(setup):
   model, parameters, _ = setup
   count, channel = 4096, 12

@@ -39,5 +39,20 @@ export type BenchmarkResult = {
   normal_relative_db: number[]; impaired_relative_db: number[]; warnings: string[]; compute_seconds: number;
   settings?: object;
 };
-export type Job = { id: string; status: 'queued' | 'running' | 'complete' | 'error'; progress: number; message: string; error?: string; result?: ExploreResult | BenchmarkResult };
+export type PathId = 'direct_sum' | 'delay_only' | 'filter_only' | 'full';
+export type ErrorMetrics = { count: number; mae_db: number; rmse_db: number };
+export type ComparedPath = {
+  id: PathId; label: string; description: string;
+  raw_db: number[]; aligned_db: number[]; residual_db: number[]; phase_cycles: (number | null)[];
+  offset_db: number; metrics: { fit: ErrorMetrics; test: ErrorMetrics; all: ErrorMetrics };
+};
+export type PathComparisonResult = {
+  kind: 'path_comparison'; reference: Reference; dp_hz: number[]; observed_db_spl: number[]; observed_phase_cycles: number[];
+  split: ('fit' | 'test')[]; split_bands: { low_hz: number; high_hz: number; role: 'fit' | 'test' }[];
+  paths: ComparedPath[]; settings: { point_count: number; middle_ear: FormSettings['middleEar']; [key: string]: unknown };
+  model: object; warnings: string[]; compute_seconds: number; created_at: string;
+  conclusion: { best_path: string; full_minus_direct_test_rmse_db: number };
+};
+export type WorkspaceTab = 'explore' | 'reference' | 'validation';
+export type Job = { id: string; status: 'queued' | 'running' | 'complete' | 'error'; progress: number; message: string; error?: string; result?: ExploreResult | BenchmarkResult | PathComparisonResult };
 export type SourceComponent = 'total' | 'fast' | 'agc' | 'gain';

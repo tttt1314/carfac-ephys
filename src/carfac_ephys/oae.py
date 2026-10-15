@@ -7,11 +7,13 @@ chain is a declared phenomenological coupling model, not a calibrated cochlear
 force or ear-canal pressure model.
 """
 
-from typing import NamedTuple
+from typing import Literal, NamedTuple
 
 import jax
 import jax.numpy as jnp
 from carfac.jax import carfac
+
+PropagationVariant = Literal["direct_sum", "delay_only", "filter_only", "full"]
 
 
 class OaeParameters(NamedTuple):
@@ -320,24 +322,76 @@ class DifferentiableOae:
     )
     return b, a, parameters.middle_ear_gain
 
-  def propagate_sources(self, source: jax.Array, parameters: OaeParameters) -> jax.Array:
+  def propagate_sources(
+    self,
+    source: jax.Array,
+    parameters: OaeParameters,
+    *,
+    variant: PropagationVariant = "full",
+  ) -> jax.Array:
     """Send complete causal sources toward the base, then through the middle ear.
 
-    B_i=P_i(z)[coupling_i*S_i+z^-1*B_(i+1)], with B_C=0 (no incoming
-    apical wave). Every channel is injected once, and channels retain phase.
-    The coupling is a free signal-domain parameter, not a physical force unit.
+    The default full chain obeys B_i=P_i(z)[coupling_i*S_i+z^-1*B_(i+1)],
+    with B_C=0. A source at channel j therefore encounters filters P_0...P_j
+    and j additional sample delays. direct_sum removes both, delay_only
+    removes the filters, and filter_only removes the additional hop delays.
+    All variants retain the same source coupling and middle-ear transfer;
+    filter_only retains the filters' own phase and temporal memory. Each
+    channel is injected once and summed with its phase intact.
+
+    The coupling is a free signal-domain parameter, not a physical force
+    unit. source has shape (samples, channels); output has shape (samples,)
+    in normalized model units. Under jax.jit, fix variant in a closure or
+    mark it static; the default call remains backward compatible.
     """
-    b, a = self.reverse_coefficients(parameters)
-    zeros = jnp.zeros(self.n_channels, dtype=source.dtype)
+    if variant == "direct_sum":
+      basal = jnp.sum(parameters.source_coupling * source, axis=1)
+    elif variant == "delay_only":
+      zeros = jnp.zeros(self.n_channels, dtype=source.dtype)
 
-    def step(carry, sample):
-      previous_output = carry[2]
-      arriving = jnp.concatenate((previous_output[1:], jnp.zeros(1, dtype=source.dtype)))
-      u = parameters.source_coupling * sample + arriving
-      state, output = _biquad_step(carry, u, b, a)
-      return state, output[0]
+      def delay_step(previous_output, sample):
+        arriving = jnp.concatenate((previous_output[1:], jnp.zeros(1, dtype=source.dtype)))
+        output = parameters.source_coupling * sample + arriving
+        return output, output[0]
 
-    _, basal = jax.lax.scan(step, (zeros, zeros, zeros, zeros), source)
+      _, basal = jax.lax.scan(delay_step, zeros, source)
+    elif variant == "filter_only":
+      b, a = self.reverse_coefficients(parameters)
+      zeros = jnp.zeros(self.n_channels, dtype=source.dtype)
+      zero = jnp.asarray(0.0, dtype=source.dtype)
+
+      def filter_step(carry, sample):
+        x1, x2, y1, y2 = carry
+        local = parameters.source_coupling * sample
+        partial = b[0] * local + b[1] * x1 + b[2] * x2 - a[0] * y1 - a[1] * y2
+
+        def channel_step(arriving, coefficients):
+          partial_i, b0_i = coefficients
+          output = partial_i + b0_i * arriving
+          return output, output
+
+        # Solve the same-sample apical-to-basal cascade; each biquad still
+        # retains its own temporal memory, but there is no extra hop delay.
+        _, reversed_output = jax.lax.scan(channel_step, zero, (partial[::-1], b[0][::-1]))
+        output = reversed_output[::-1]
+        arriving = jnp.concatenate((output[1:], jnp.zeros(1, dtype=source.dtype)))
+        return (local + arriving, x1, output, y1), output[0]
+
+      _, basal = jax.lax.scan(filter_step, (zeros, zeros, zeros, zeros), source)
+    elif variant == "full":
+      b, a = self.reverse_coefficients(parameters)
+      zeros = jnp.zeros(self.n_channels, dtype=source.dtype)
+
+      def step(carry, sample):
+        previous_output = carry[2]
+        arriving = jnp.concatenate((previous_output[1:], jnp.zeros(1, dtype=source.dtype)))
+        u = parameters.source_coupling * sample + arriving
+        state, output = _biquad_step(carry, u, b, a)
+        return state, output[0]
+
+      _, basal = jax.lax.scan(step, (zeros, zeros, zeros, zeros), source)
+    else:
+      raise ValueError(f"Unsupported propagation variant: {variant}")
     me_b, me_a, me_gain = self.middle_ear_coefficients(parameters)
     zero = jnp.asarray(0.0, dtype=source.dtype)
     _, ear_canal = jax.lax.scan(
