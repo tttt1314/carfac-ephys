@@ -4,6 +4,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
+from carfac.jax import carfac
 
 from carfac_ephys.oae import DifferentiableOae
 
@@ -15,6 +16,70 @@ def setup(request):
   t = np.arange(1600) / model.fs
   wave = jnp.asarray(0.02 * np.sin(2 * np.pi * 1000 * t) + 0.01 * np.sin(2 * np.pi * 1230 * t))
   return model, parameters, wave
+
+
+@pytest.mark.parametrize("decimation", [(8, 2, 2, 2), (1, 1, 1, 1)])
+def test_diagnostics_bm_matches_official_carfac_with_impaired_resting_health(decimation):
+  with jax.enable_x64():
+    model = DifferentiableOae(fs=16000, agc_decimation=decimation)
+    parameters = model.parameters(jnp.float64)._replace(
+      ohc_health=jnp.linspace(0.25, 1.0, model.n_channels),
+      velocity_scale=jnp.asarray(0.13),
+      v_offset=jnp.asarray(0.06),
+    )
+    time = np.arange(1600) / model.fs
+    wave = jnp.asarray(
+      0.002 + 0.02 * np.sin(2 * np.pi * 1000 * time) + 0.01 * np.sin(2 * np.pi * 1230 * time),
+      dtype=jnp.float64,
+    )
+    diagnostics = jax.jit(model.simulate_diagnostics)(wave, parameters)
+
+    # Independently run the public upstream model from the same silent health.
+    design = carfac.CarfacDesignParameters(fs=model.fs)
+    design.ears[0].car.use_delay_buffer = True
+    design.ears[0].ihc.ihc_style = "two_cap_with_syn"
+    design.ears[0].agc.decimation = decimation
+    hypers, weights, state = carfac.design_and_init_carfac(design)
+    weights.ears[0].car.ohc_health = parameters.ohc_health
+    weights.ears[0].car.velocity_scale = float(parameters.velocity_scale)
+    weights.ears[0].car.v_offset = float(parameters.v_offset)
+    state.ears[0].car.zb_memory = hypers.ears[0].car.zr_coeffs * parameters.ohc_health
+    state.ears[0].car.g_memory = carfac.stage_g(weights.ears[0].car, parameters.ohc_health)
+    expected = jax.jit(lambda w: carfac.run_segment(w, hypers, weights, state).bm[:, :, 0])(wave)
+    assert diagnostics.bm.dtype == jnp.float64
+    np.testing.assert_allclose(diagnostics.bm, expected, rtol=1e-10, atol=1e-12)
+    # A DC offset makes returning raw_car instead of AC-coupled BM visibly wrong.
+    assert np.linalg.norm(diagnostics.bm - diagnostics.sources.raw_car) > 1e-3
+
+
+@pytest.mark.parametrize("linear_open", [False, True])
+def test_diagnostics_preserves_legacy_sources_emission_and_reference_switches(setup, linear_open):
+  model, parameters, wave = setup
+  matched = model.linearization(parameters)
+  reference = matched._replace(radius=matched.radius - 0.02, gain=matched.gain * 0.85)
+  switches = {
+    "open_loop": linear_open,
+    "disable_fast": linear_open,
+    "reference": reference,
+  }
+  diagnostics = jax.jit(lambda w: model.simulate_diagnostics(w, parameters, **switches))(wave)
+  legacy = jax.jit(lambda w: model.simulate(w, parameters, **switches))(wave)
+  # Existing tuple unpacking remains valid for both legacy public result types.
+  sources, output = legacy
+  fast, agc, gain, raw_car, mismatch = sources
+  for actual, expected in zip(
+    diagnostics.sources, (fast, agc, gain, raw_car, mismatch), strict=True
+  ):
+    np.testing.assert_allclose(actual, expected, rtol=3e-5, atol=1e-10)
+  np.testing.assert_allclose(diagnostics.ear_canal, output, rtol=3e-5, atol=1e-10)
+  assert np.linalg.norm(diagnostics.bm) > 0
+  assert np.linalg.norm(diagnostics.sources.linear_mismatch) > 0
+  if linear_open:
+    assert np.max(np.abs(diagnostics.sources.nonlinear)) == 0
+    assert np.max(np.abs(diagnostics.ear_canal)) == 0
+  else:
+    assert np.linalg.norm(diagnostics.sources.nonlinear) > 0
+    assert np.linalg.norm(diagnostics.ear_canal) > 0
 
 
 def test_reference_plus_sources_rebuilds_full_forward_waveform(setup):

@@ -71,6 +71,19 @@ class OaeSimulation(NamedTuple):
   ear_canal: jax.Array
 
 
+class OaeDiagnostics(NamedTuple):
+  """Sources, official AC-coupled BM, and full-band reverse model output.
+
+  Sources and BM have shape (samples, channels) for the primary ear; the
+  reverse output has shape (samples,). All signals retain normalized model
+  units. BM is collected alongside source extraction in one forward run.
+  """
+
+  sources: SourceSignals
+  bm: jax.Array
+  ear_canal: jax.Array
+
+
 def _biquad_step(carry, values, b, a):
   """Apply a causal direct-form biquad to scalar or channel-vector samples."""
   x1, x2, y1, y2 = carry
@@ -176,6 +189,21 @@ class DifferentiableOae:
     the initialized silent equilibrium they multiply zero CAR state/input,
     so their contribution has no first-order input response.
     """
+    sources, _ = self._extract_sources_and_bm(
+      waveform, parameters, open_loop=open_loop, disable_fast=disable_fast, reference=reference
+    )
+    return sources
+
+  def _extract_sources_and_bm(
+    self,
+    waveform: jax.Array,
+    parameters: OaeParameters,
+    *,
+    open_loop: bool = False,
+    disable_fast: bool = False,
+    reference: LinearReference | None = None,
+  ) -> tuple[SourceSignals, jax.Array]:
+    """Collect local source residuals and official BM in the same forward scan."""
     dtype = waveform.dtype
     weights, initial, zb0, g0, n0, radius0 = self._initialize(parameters, dtype, disable_fast)
     a = self.car.a0_coeffs
@@ -202,7 +230,7 @@ class DifferentiableOae:
       new2 = radius0 * (c * z1 + a * z2) + force2
       stage_input = jnp.concatenate((sample[None], previous.zy_memory[:-1]))
       # The official step computes the identical actual radius and state update.
-      state, _ = carfac.run_sample(open_loop, self.hypers, weights, state, sample[None])
+      state, outputs = carfac.run_sample(open_loop, self.hypers, weights, state, sample[None])
       actual = state.ears[0].car
       output_residual = g0 * h * new2
       gain_residual = (gain - g0) * (stage_input + h * actual.z2_memory)
@@ -221,12 +249,12 @@ class DifferentiableOae:
         reference_output = reference.gain * (stage_input + h * ref_state[1])
         mismatch = matched_output - reference_output
       signals = (output_residual[0], output_residual[1], gain_residual, actual.zy_memory, mismatch)
-      return (state, jnp.stack((new1, new2), axis=1), ref_state), signals
+      return (state, jnp.stack((new1, new2), axis=1), ref_state), (signals, outputs[2][:, 0])
 
-    _, signals = jax.lax.scan(
+    _, (signals, bm) = jax.lax.scan(
       jax.checkpoint(step), (initial, auxiliary, diagnostic_state), waveform
     )
-    return SourceSignals(*signals)
+    return SourceSignals(*signals), bm
 
   def reconstruct_forward(
     self,
@@ -333,3 +361,22 @@ class DifferentiableOae:
       waveform, parameters, open_loop=open_loop, disable_fast=disable_fast, reference=reference
     )
     return OaeSimulation(sources, self.propagate_sources(sources.nonlinear, parameters))
+
+  def simulate_diagnostics(
+    self,
+    waveform: jax.Array,
+    parameters: OaeParameters,
+    *,
+    open_loop: bool = False,
+    disable_fast: bool = False,
+    reference: LinearReference | None = None,
+  ) -> OaeDiagnostics:
+    """Return official BM and nonlinear emissions from a single forward run.
+
+    Uses the same initialization and switches as `simulate`. The reference
+    changes only the source mismatch diagnostic, never BM or emission.
+    """
+    sources, bm = self._extract_sources_and_bm(
+      waveform, parameters, open_loop=open_loop, disable_fast=disable_fast, reference=reference
+    )
+    return OaeDiagnostics(sources, bm, self.propagate_sources(sources.nonlinear, parameters))
