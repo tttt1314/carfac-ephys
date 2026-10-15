@@ -27,14 +27,14 @@ jobs:
       - name: Lock file is in sync with pyproject.toml
         run: uv lock --check
       - name: Install dependencies
-        run: uv sync --locked
+        run: uv sync --locked --extra explorer
       # Formatting is strict: any drift from `ruff format` fails the build.
       - name: ruff format --check
-        run: uv run ruff format --check --diff .
+        run: uv run --no-sync ruff format --check --diff .
       - name: ruff check
-        run: uv run ruff check --output-format=github .
+        run: uv run --no-sync ruff check --output-format=github .
       - name: pyrefly check
-        run: uv run pyrefly check
+        run: uv run --no-sync pyrefly check
       - name: How to fix locally
         if: failure()
         run: |
@@ -57,6 +57,23 @@ jobs:
         with:
           enable-cache: true
       - name: Install dependencies
-        run: uv sync --locked
+        run: uv sync --locked --extra explorer
       - name: Run test suite
-        run: uv run pytest -v
+        run: uv run --no-sync pytest -v
+
+  frontend:
+    name: Explorer frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npm test
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend

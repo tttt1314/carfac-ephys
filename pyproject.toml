@@ -18,6 +18,15 @@ dependencies = [
 
 [project.scripts]
 carfac-ephys-simulate = "carfac_ephys.cli:main"
+carfac-ephys-explorer = "carfac_ephys.explorer_api:main"
+
+[project.optional-dependencies]
+explorer = [
+  "fastapi>=0.115",
+  "uvicorn>=0.30",
+  "python-multipart>=0.0.20",
+  "soundfile>=0.13",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -28,6 +37,7 @@ allow-direct-references = true
 
 [dependency-groups]
 dev = [
+  "httpx>=0.28",
   "ruff>=0.16",
   "pyrefly>=1.2.0",
   "pre-commit>=4.0",

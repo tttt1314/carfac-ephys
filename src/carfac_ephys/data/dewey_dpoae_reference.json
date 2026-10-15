@@ -1,0 +1,311 @@
+{
+  "id": "dewey-2025-fig8-distortion-24",
+  "title": "Dewey Fig. 8: single human ear, distortion component (24 observed points)",
+  "source_url": "https://doi.org/10.6084/m9.figshare.27964554.v2",
+  "doi": "10.6084/m9.figshare.27964554.v2",
+  "license": "CC BY 4.0",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "attribution": "James B. Dewey, Sources of microstructure in mammalian cochlear responses, JARO (2025); source measurements described in Dewey and Dhar (2017).",
+  "publication_doi": "10.1007/s10162-025-00974-5",
+  "methods_doi": "10.1007/s10162-016-0588-2",
+  "component": "dpoae_D",
+  "subject": {
+    "species": "human",
+    "count": 1,
+    "id": null,
+    "health_status": "health_not_reported"
+  },
+  "comparison_scope": "exploratory_relative_amplitude_shape",
+  "stimulus": {
+    "ratio": 1.16,
+    "l1_db_fpl": 51,
+    "l2_db_fpl": 36
+  },
+  "units": {
+    "frequency": "Hz",
+    "level": "dB SPL",
+    "phase": "cycles"
+  },
+  "points": [
+    {
+      "dp_hz": 591.73,
+      "f1_hz": 704.4404761904761,
+      "f2_hz": 817.1509523809523,
+      "level_db_spl": 10.047,
+      "phase_cycles": 1.9125510000000001
+    },
+    {
+      "dp_hz": 665.73,
+      "f1_hz": 792.5357142857142,
+      "f2_hz": 919.3414285714284,
+      "level_db_spl": 7.4484,
+      "phase_cycles": 1.65369
+    },
+    {
+      "dp_hz": 743.83,
+      "f1_hz": 885.5119047619047,
+      "f2_hz": 1027.1938095238095,
+      "level_db_spl": 8.4119,
+      "phase_cycles": 1.49391
+    },
+    {
+      "dp_hz": 836.8100000000001,
+      "f1_hz": 996.202380952381,
+      "f2_hz": 1155.5947619047618,
+      "level_db_spl": 9.8357,
+      "phase_cycles": 1.3715899999999999
+    },
+    {
+      "dp_hz": 941.45,
+      "f1_hz": 1120.7738095238094,
+      "f2_hz": 1300.0976190476188,
+      "level_db_spl": 11.168,
+      "phase_cycles": 1.26482
+    },
+    {
+      "dp_hz": 1059.1999999999998,
+      "f1_hz": 1260.9523809523805,
+      "f2_hz": 1462.7047619047612,
+      "level_db_spl": 11.593,
+      "phase_cycles": 1.14501
+    },
+    {
+      "dp_hz": 1183.5,
+      "f1_hz": 1408.9285714285713,
+      "f2_hz": 1634.3571428571427,
+      "level_db_spl": 10.942,
+      "phase_cycles": 0.9885999999999999
+    },
+    {
+      "dp_hz": 1331.3999999999999,
+      "f1_hz": 1584.9999999999998,
+      "f2_hz": 1838.5999999999997,
+      "level_db_spl": 9.1483,
+      "phase_cycles": 0.7358
+    },
+    {
+      "dp_hz": 1498.0,
+      "f1_hz": 1783.3333333333333,
+      "f2_hz": 2068.6666666666665,
+      "level_db_spl": 8.7337,
+      "phase_cycles": 0.3978999999999999
+    },
+    {
+      "dp_hz": 1685.3,
+      "f1_hz": 2006.3095238095236,
+      "f2_hz": 2327.319047619047,
+      "level_db_spl": 5.2862,
+      "phase_cycles": 0.19320000000000004
+    },
+    {
+      "dp_hz": 1882.9,
+      "f1_hz": 2241.547619047619,
+      "f2_hz": 2600.1952380952375,
+      "level_db_spl": 2.9301,
+      "phase_cycles": 0.09030000000000005
+    },
+    {
+      "dp_hz": 2118.3999999999996,
+      "f1_hz": 2521.904761904761,
+      "f2_hz": 2925.4095238095224,
+      "level_db_spl": 2.0737,
+      "phase_cycles": -0.10939999999999994
+    },
+    {
+      "dp_hz": 2383.3,
+      "f1_hz": 2837.2619047619046,
+      "f2_hz": 3291.223809523809,
+      "level_db_spl": 1.3873,
+      "phase_cycles": -0.3466
+    },
+    {
+      "dp_hz": 2681.2999999999997,
+      "f1_hz": 3192.0238095238087,
+      "f2_hz": 3702.7476190476177,
+      "level_db_spl": -5.102,
+      "phase_cycles": -0.6139999999999999
+    },
+    {
+      "dp_hz": 2995.8,
+      "f1_hz": 3566.428571428571,
+      "f2_hz": 4137.057142857142,
+      "level_db_spl": -0.44896,
+      "phase_cycles": -0.5829
+    },
+    {
+      "dp_hz": 3370.4,
+      "f1_hz": 4012.3809523809523,
+      "f2_hz": 4654.361904761904,
+      "level_db_spl": 2.8498,
+      "phase_cycles": -0.7256
+    },
+    {
+      "dp_hz": 3791.9,
+      "f1_hz": 4514.166666666666,
+      "f2_hz": 5236.4333333333325,
+      "level_db_spl": 4.6332,
+      "phase_cycles": -0.9901
+    },
+    {
+      "dp_hz": 4266.099999999999,
+      "f1_hz": 5078.690476190475,
+      "f2_hz": 5891.280952380951,
+      "level_db_spl": 5.59,
+      "phase_cycles": -1.1158000000000001
+    },
+    {
+      "dp_hz": 4766.5,
+      "f1_hz": 5674.4047619047615,
+      "f2_hz": 6582.309523809523,
+      "level_db_spl": 3.4202,
+      "phase_cycles": -1.2923
+    },
+    {
+      "dp_hz": 5362.599999999999,
+      "f1_hz": 6384.047619047617,
+      "f2_hz": 7405.495238095235,
+      "level_db_spl": -1.7707,
+      "phase_cycles": -1.4251999999999998
+    },
+    {
+      "dp_hz": 6033.2,
+      "f1_hz": 7182.380952380951,
+      "f2_hz": 8331.561904761904,
+      "level_db_spl": -6.334,
+      "phase_cycles": -1.4359000000000002
+    },
+    {
+      "dp_hz": 6882.5,
+      "f1_hz": 8193.45238095238,
+      "f2_hz": 9504.40476190476,
+      "level_db_spl": -9.8687,
+      "phase_cycles": -1.4552
+    },
+    {
+      "dp_hz": 7851.099999999999,
+      "f1_hz": 9346.547619047618,
+      "f2_hz": 10841.995238095236,
+      "level_db_spl": -9.2813,
+      "phase_cycles": -1.2757999999999998
+    },
+    {
+      "dp_hz": 10800.0,
+      "f1_hz": 12857.142857142855,
+      "f2_hz": 14914.28571428571,
+      "level_db_spl": -28.016,
+      "phase_cycles": -1.4428999999999998
+    }
+  ],
+  "limitations": [
+    "The source identifies one human ear but provides no subject identifier or ear-specific audiogram in this artifact. Hearing health is not reported; these data are not eligible as verified normal-hearing ground truth.",
+    "The values are the separated dpoae_D distortion component, not the total DPOAE or the reflection component. A model without reflection cannot be judged against full fine structure using this curve.",
+    "The measurements used logarithmically swept primaries and frequency-domain/time-window component separation. Discrete steady two-tone simulations are an approximation, not a matched reproduction of the acquisition or analysis.",
+    "The measured input levels are L1=51 and L2=36 dB FPL. Treating those numbers as nominal dB SPL is not an FPL-to-SPL conversion or matched calibration.",
+    "Levels are measured dB SPL at the ear canal. Uncalibrated model units support relative amplitude shape comparison only, not absolute SPL error or pass/fail validation.",
+    "Phase values are retained exactly in source cycles; the artifact does not specify an absolute phase-reference convention. No absolute-phase agreement or literal propagation delay is implied.",
+    "Only points with finite mag_clean and phi_clean are selected. The author describes these fields as responses greater than 6 dB above the measurement noise floor; the selected subset is not a population reference range.",
+    "The published Fig. 8 plot zooms to approximately 2.9–5.1 kHz DP frequency. This selection spans the full clean dpoae_D vector stored in fig8.mat rather than only the displayed zoom.",
+    "The distributed artifact contains processed component estimates; observation here means an existing tabulated source estimate, not an unprocessed microphone sample. No interpolation of measured level or phase is performed by this extraction."
+  ],
+  "provenance": {
+    "figshare_article_id": 27964554,
+    "figshare_version": 2,
+    "source_variable": "fig8.dpoae_D",
+    "artifacts": [
+      {
+        "filename": "fig8.mat",
+        "figshare_file_id": 50985435,
+        "url": "https://ndownloader.figshare.com/files/50985435",
+        "sha256": "036605383fa92842b810eb86793a971364544773671400a632790a4c8b5ff198",
+        "bytes": 42982
+      },
+      {
+        "filename": "plot_fig8.m",
+        "figshare_file_id": 50985456,
+        "url": "https://ndownloader.figshare.com/files/50985456",
+        "sha256": "24e28ab6f03faca724cd65b62803110c6791e41189ec976045082992beb85d90",
+        "bytes": 4815
+      },
+      {
+        "filename": "README.txt",
+        "figshare_file_id": 50985534,
+        "url": "https://ndownloader.figshare.com/files/50985534",
+        "sha256": "1499c63c79ccb96b97b49f735c23519e43360f1fb8e03777a6d973aa088328cc",
+        "bytes": 1205
+      }
+    ],
+    "source_point_count": 454,
+    "eligible_point_count": 386,
+    "eligibility": "finite(dp_f) and finite(mag_clean) and finite(phi_clean), preserving source order",
+    "selection": "Select source indices at numpy.rint(numpy.linspace(0, eligible_point_count - 1, 24)).astype(int) ranks among eligible observations; rint uses ties-to-even. No interpolation or replacement.",
+    "source_observation_indices_zero_based": [
+      0,
+      17,
+      33,
+      50,
+      67,
+      84,
+      100,
+      117,
+      134,
+      151,
+      167,
+      184,
+      201,
+      218,
+      234,
+      251,
+      268,
+      285,
+      301,
+      318,
+      335,
+      354,
+      373,
+      419
+    ],
+    "eligible_observation_ranks_zero_based": [
+      0,
+      17,
+      33,
+      50,
+      67,
+      84,
+      100,
+      117,
+      134,
+      151,
+      167,
+      184,
+      201,
+      218,
+      234,
+      251,
+      268,
+      285,
+      301,
+      318,
+      335,
+      352,
+      368,
+      385
+    ],
+    "frequency_derivation": "f1_hz = dp_hz / (2 - ratio); f2_hz = ratio * f1_hz. Source dpoae_D has dp_f, not f2_f.",
+    "measured_fields": {
+      "dp_hz": "dp_f",
+      "level_db_spl": "mag_clean",
+      "phase_cycles": "phi_clean"
+    },
+    "amplitude_phase_transformation": "none",
+    "source_protocol": {
+      "primary_type": "logarithmically swept tones",
+      "sweep_rate_octaves_per_second": 0.16666666666666666,
+      "repeat_count": 16,
+      "component_separation": "inverse FFT with frequency windows and time-domain component windows; see methods DOI"
+    },
+    "published_plot_dp_range_hz": [
+      2900,
+      5100
+    ]
+  }
+}

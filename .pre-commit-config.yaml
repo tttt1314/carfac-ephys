@@ -41,6 +41,6 @@ repos:
       - id: pyrefly
         name: pyrefly check (on push)
         language: system
-        entry: uv run pyrefly check
+        entry: uv run --extra explorer pyrefly check
         pass_filenames: false
         stages: [pre-push]
