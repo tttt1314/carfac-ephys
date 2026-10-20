@@ -2,7 +2,6 @@
 
 import dataclasses
 from collections.abc import Callable
-from typing import Any
 
 import jax
 import jax.numpy as jnp
@@ -25,23 +24,8 @@ from carfac_ephys.r_type_oae import (
 )
 
 THESIS_LOSS_WEIGHTS = dict(_THESIS_LOSS_WEIGHTS)
-PROFILES = ("Flat00", "Slope20", "Slope30", "Notch4K", "Notch3K", "Notch2K")
 STARTS = {"health": 0.99, "slight": 0.75, "mid": 0.5}
 PROBE_HZ = np.array([250, 500, 1000, 2000, 3000, 4000, 6000, 8000])
-THESIS_METRICS = dict(
-  zip(
-    PROFILES,
-    (
-      (0.40, 0.562, 2.68),
-      (1.42, 0.281, 0.88),
-      (2.67, 0.222, 0.97),
-      (4.25, 0.434, 1.90),
-      (1.65, 0.238, 3.26),
-      (4.20, 0.217, 2.49),
-    ),
-    strict=True,
-  )
-)
 METRIC_NAMES = ("audiogram_mae_db", "time_rmse_mpa", "spectrum_mae_db")
 
 
@@ -73,14 +57,13 @@ class FitResult:
     return self.selected.parameters
 
 
-def prepare_target(raw_oae_pa: np.ndarray, model: RTypeOAEModel) -> jax.Array:
-  """Extracts row index 2 and the fixed [132:926] window in normalized units."""
-  raw = np.asarray(raw_oae_pa)
-  if raw.shape != (6, 2205) or not np.isfinite(raw).all():
-    raise ValueError("Expected a finite (6, 2205) archived OAE array in Pa.")
-  cfg = model.config
-  target = raw[2, cfg.te_start + cfg.target_offset_samples : cfg.te_end + cfg.target_offset_samples]
-  # Normalize before the float32 conversion, as in the original NumPy loader.
+def prepare_target(oae_pa: np.ndarray, model: RTypeOAEModel) -> jax.Array:
+  """Normalizes an aligned pressure waveform for the fixed fitting window."""
+  target = np.asarray(oae_pa)
+  samples = model.config.te_end - model.config.te_start
+  if target.shape != (samples,) or not np.isfinite(target).all():
+    raise ValueError(f"Expected a finite ({samples},) aligned OAE waveform in Pa.")
+  # Normalize before float32 conversion to retain the original arithmetic.
   target = target / PRESSURE_REFERENCE_PA
   if not np.any(target):
     raise ValueError("The original STFT loss requires a nonzero target.")
@@ -207,9 +190,8 @@ def fit(
   """Runs all three starts, selecting by the last finite pre-update loss.
 
   ``target`` is only the normalized TEOAE window; audiogram labels are absent
-  from the interface. Reduced budgets are useful for smoke checks but are not
-  eligible for the full reproduction verdict. Nonfinite trajectories fail
-  explicitly rather than being silently counted as successful fits.
+  from the interface. Reduced budgets are useful for smoke checks. Nonfinite
+  trajectories fail explicitly.
   """
   if not 1 <= max_updates <= 1501:
     raise ValueError("max_updates must be between 1 and 1501.")
@@ -343,19 +325,3 @@ def evaluate(
   ):
     raise FloatingPointError("Evaluation produced nonfinite values.")
   return metrics, {name: np.asarray(value) for name, value in arrays.items()}
-
-
-def acceptance(profile: str, metrics: dict[str, float]) -> dict[str, Any]:
-  """Checks the three predeclared Table 3.1 upper bounds for one pattern."""
-  reference = dict(zip(METRIC_NAMES, THESIS_METRICS[profile], strict=True))
-  limits = dict(zip(METRIC_NAMES, np.asarray(THESIS_METRICS[profile]) + [1, 0.1, 1], strict=True))
-  checks = {
-    name: bool(np.isfinite(metrics[name]) and metrics[name] <= limit)
-    for name, limit in limits.items()
-  }
-  return {
-    "reference": reference,
-    "limits": limits,
-    "checks": checks,
-    "passed": all(checks.values()),
-  }

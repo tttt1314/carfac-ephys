@@ -33,17 +33,15 @@ class RTypeOAEConfig:
   prehistory_samples: int = 128
   te_start: int = 88
   te_end: int = 882
-  target_offset_samples: int = 44
   roughness_seed: int = 42
 
   def __post_init__(self) -> None:
     if self.fs != 44100:
       raise ValueError("The thesis reproduction preset requires 44100 Hz.")
-    if (self.prehistory_samples, self.te_start, self.te_end, self.target_offset_samples) != (
+    if (self.prehistory_samples, self.te_start, self.te_end) != (
       128,
       88,
       882,
-      44,
     ):
       raise ValueError("The thesis preset requires its original sample windows.")
 

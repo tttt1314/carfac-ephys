@@ -51,25 +51,12 @@ def test_winner_uses_pre_update_loss_even_when_final_loss_ranks_differ(model, mo
   np.testing.assert_allclose(result.parameters.alpha_db, [-0.1], rtol=1e-6)
 
 
-def test_target_uses_original_row_window_and_normalization(model):
-  raw = np.arange(6 * 2205, dtype=np.float64).reshape(6, 2205) / 1e7
-  np.testing.assert_array_equal(
-    fitting.prepare_target(raw, model), (raw[2, 132:926] / 2e-5).astype(np.float32)
-  )
+def test_target_normalizes_aligned_pressure_to_float32(model):
+  raw = np.arange(794, dtype=np.float64) / 1e7
+  np.testing.assert_array_equal(fitting.prepare_target(raw, model), (raw / 2e-5).astype(np.float32))
   with pytest.raises(ValueError, match="nonzero"):
     fitting.prepare_target(np.zeros_like(raw), model)
   with pytest.raises(ValueError, match="finite"):
     fitting.prepare_target(np.full_like(raw, np.nan), model)
-
-
-def test_acceptance_checks_each_metric_and_accepts_improvement():
-  names = fitting.METRIC_NAMES
-  for profile, reference in fitting.THESIS_METRICS.items():
-    limits = np.asarray(reference) + [1, 0.1, 1]
-    metrics = dict(zip(names, limits, strict=True))
-    assert fitting.acceptance(profile, metrics)["passed"]
-    assert fitting.acceptance(profile, dict.fromkeys(names, 0.0))["passed"]
-    for key in names:
-      bad = {**metrics, key: metrics[key] + 0.001}
-      assert not fitting.acceptance(profile, bad)["passed"]
-      assert not fitting.acceptance(profile, {**metrics, key: float("nan")})["passed"]
+  with pytest.raises(ValueError, match="aligned"):
+    fitting.prepare_target(np.ones((6, 2205)), model)

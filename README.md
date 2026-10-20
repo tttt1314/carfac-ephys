@@ -243,11 +243,10 @@ uv run carfac-ephys-simulate --middle-ear Verhulst_2018 --output-dir output/
 
 ### R-type OAE and TEOAE personalization
 
-The differentiable reflection path and Jimmy Xu's thesis §3.4.1 fitting
-experiment are available through `carfac-ephys-fit-teoae`. See
-[the model, training recipe, and reproduction instructions](docs/r-type-oae.md)
-for verified private-input preparation, the six-pattern training command,
-and the fixed numerical acceptance criteria.
+The differentiable reflection path and Jimmy Xu's thesis §3.4.1 training
+recipe are available through `carfac-ephys-fit-teoae`. See
+[the model and training guide](docs/r-type-oae.md) for the input layout,
+fitting command, and saved parameters and evaluation metrics.
 
 ### Checks Every Pull Request Must Pass
 

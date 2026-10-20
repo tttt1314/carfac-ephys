@@ -1,69 +1,75 @@
+"""Exercise user-supplied inputs and a small complete fitting run."""
+
+import hashlib
 import json
-from typing import Any
 
 import numpy as np
 import pytest
 from click.testing import CliRunner
 
-from carfac_ephys import teoae_cli, teoae_fitting
+from carfac_ephys import teoae_cli
 
 
-def test_input_preflight_detects_corrupted_archive(tmp_path, monkeypatch):
-  folder = tmp_path / "data" / "Flat00"
-  folder.mkdir(parents=True)
+def test_inputs_use_custom_names_and_record_actual_hashes(tmp_path):
+  folder = tmp_path / "my-click"
+  folder.mkdir()
   oae = folder / "oae.npy"
-  profile = folder / "profile.txt"
-  np.save(oae, np.ones((6, 2205)))
-  profile.write_text("250 500\n0 0\n")
-  manifest = tmp_path / "manifest.json"
-  manifest.write_text(
-    json.dumps(
-      {
-        "profiles": {
-          "Flat00": {
-            "oae": {"sha256": teoae_cli.file_sha256(oae), "source": "source/oae.npy"},
-            "profile": {"sha256": teoae_cli.file_sha256(profile), "source": "source/profile.txt"},
-          }
-        }
-      }
-    )
-  )
-  monkeypatch.setattr(teoae_cli, "MANIFEST_PATH", manifest)
-  assert "Flat00" in teoae_cli.validate_inputs(folder.parent, ("Flat00",))
-  profile.write_text("250 500\n0 1\n")
-  with pytest.raises(ValueError, match="hash mismatch"):
-    teoae_cli.validate_inputs(folder.parent, ("Flat00",))
+  np.save(oae, np.ones(794))
+
+  first = teoae_cli.validate_inputs(tmp_path, ())
+  assert tuple(first) == ("my-click",)
+  assert first["my-click"] == {"oae": {"sha256": hashlib.sha256(oae.read_bytes()).hexdigest()}}
+
+  # A user's different input is accepted and gets its own fingerprint.
+  np.save(oae, np.full(794, 2.0))
+  second = teoae_cli.validate_inputs(tmp_path, ("my-click",))
+  assert second["my-click"]["oae"]["sha256"] != first["my-click"]["oae"]["sha256"]
+  (folder / "profile.txt").write_text("250 500\n0 0\n")
+  assert "profile" in teoae_cli.validate_inputs(tmp_path, ("my-click",))["my-click"]
+
+
+def test_cli_fits_custom_input_and_saves_all_starts_without_gain_labels(tmp_path):
+  folder = tmp_path / "data" / "my-click"
+  folder.mkdir(parents=True)
+  t = np.arange(794)
+  raw = 2e-5 * (8 * np.exp(-t / 160) * np.sin(t * 0.47) + 0.3 * np.cos(t * 0.13))
+  np.save(folder / "oae.npy", raw)
+  output = tmp_path / "fit"
+
   result = CliRunner().invoke(
-    teoae_cli.main, ["--data-dir", str(folder.parent), "--profiles", "Flat00"]
+    teoae_cli.main,
+    ["--data-dir", str(folder.parent), "--output-dir", str(output), "--max-updates", "1"],
   )
+  assert result.exit_code == 0, result.output
+  protocol = json.loads((output / "protocol.json").read_text())
+  assert protocol["profiles"] == ["my-click"]
+  assert set(protocol["inputs"]["my-click"]) == {"oae"}
+  report = json.loads((output / "report.json").read_text())
+  record = report["results"][0]
+  assert record["profile"] == "my-click"
+  assert [start["name"] for start in record["starts"]] == ["health", "slight", "mid"]
+  for start in record["starts"]:
+    assert start["updates"] == 1
+    assert (output / "my-click" / f"start-{start['name']}.npz").is_file()
+  assert (output / "my-click/selected-parameters.npz").is_file()
+  assert "metrics" not in record
+  assert not (output / "my-click/evaluation.npz").exists()
+
+
+@pytest.mark.parametrize(
+  ("profiles", "message"),
+  [
+    ((), "No profile directories"),
+    (("missing",), "Missing input folder"),
+    (("same", "same"), "only once"),
+  ],
+)
+def test_invalid_input_selection_fails_before_creating_output(tmp_path, profiles, message):
+  output = tmp_path / "fit"
+  arguments = ["--data-dir", str(tmp_path), "--output-dir", str(output)]
+  for profile in profiles:
+    arguments.extend(["--profiles", profile])
+  result = CliRunner().invoke(teoae_cli.main, arguments)
   assert result.exit_code != 0
-  assert "hash mismatch" in result.output
-
-
-def test_reduced_budget_or_missing_patterns_cannot_pass(tmp_path):
-  records: list[dict[str, Any]] = []
-  for profile in teoae_fitting.PROFILES:
-    folder = tmp_path / profile
-    folder.mkdir()
-    np.savez(
-      folder / "evaluation.npz",
-      probe_hz=teoae_fitting.PROBE_HZ,
-      target_gain_db=np.zeros(8),
-      prediction_gain_db=np.zeros(8),
-    )
-    metrics = dict.fromkeys(teoae_fitting.METRIC_NAMES, 0.0)
-    records.append(
-      {
-        "profile": profile,
-        "metrics": metrics,
-        "acceptance": teoae_fitting.acceptance(profile, metrics),
-        "selected_start": "health",
-        "selection_loss": 1.0,
-        "final_recomputed_loss": 1.0,
-      }
-    )
-  assert not teoae_cli.write_report(tmp_path, records, False)["reproduction_passed"]
-  assert not teoae_cli.write_report(tmp_path, records[:1], True)["reproduction_passed"]
-  assert teoae_cli.write_report(tmp_path, records, True)["reproduction_passed"]
-  records[0]["acceptance"]["passed"] = False
-  assert not teoae_cli.write_report(tmp_path, records, True)["reproduction_passed"]
+  assert message in result.output
+  assert not output.exists()

@@ -1,7 +1,7 @@
-# Jimmy's differentiable R-type OAE
+# Differentiable R-type OAE and TEOAE fitting
 
 This implementation adds the reflection path and synthetic-TEOAE fitting
-experiment from Yong-Yue (Jimmy) Xu's 2026 thesis, §3.3–3.4.1. It uses the
+recipe from Yong-Yue (Jimmy) Xu's 2026 thesis, §3.3–3.4.1. It uses the
 repository's pinned official CARFAC and an explicit thesis preset. Existing
 ABR/EFR model defaults and Ben's middle-ear options retain their behavior.
 
@@ -44,41 +44,36 @@ oae_pa = run(model, parameters, pressure_pa)
 gradients = jax.grad(lambda p: jnp.sum(run(model, p, pressure_pa) ** 2))(parameters)
 ```
 
-## Prepare the archived inputs
+## Fit supplied click responses
 
-Install with `uv sync --locked`. The six archived inputs remain outside Git in
-`data/private/jimmy-teoae/`; no NAS access is required when the local research
-archive is available:
+Install with `uv sync --locked`. Put each input in a named folder under
+`--data-dir`; folder names are chosen by the caller:
 
-```bash
-uv run python scripts/prepare_teoae_data.py --research-dir /path/to/Research
+```text
+data/private/teoae/
+  my-click/
+    oae.npy
+    profile.txt  # optional gain-reduction labels for post-fit evaluation
 ```
 
-The preparation script validates all twelve files against the checked-in
-`jimmy_teoae_manifest.json` before copying them. Output folders use the labels
-`Flat00`, `Slope20`, `Slope30`, `Notch4K`, `Notch3K`, and `Notch2K`.
-The two slope inputs specifically come from the author's CARFAC archives
-`Flat00_Slope20` and `Flat00_Slope30`. Their gain profiles match the separately
-archived TDLM slope inputs, but their OAE waveforms differ. The manifest
-preserves that distinction. The other four inputs come from the previously
-audited six-pattern archive.
-
-## Full fitting and evaluation
+`oae.npy` contains one finite 794-sample pressure waveform in Pa, aligned to
+the model's fitting window `[88:882]` after the click. Optional `profile.txt`
+contains two rows: frequency in Hz and
+gain reduction in dB. Labels are loaded only after fitting and start selection.
 
 ```bash
 uv run carfac-ephys-fit-teoae \
-  --data-dir data/private/jimmy-teoae \
-  --output-dir output/teoae-thesis
+  --data-dir data/private/teoae \
+  --output-dir output/teoae-fitting
 ```
 
-The CLI runs all six patterns by default on CPU, using float32. It refuses to
-overwrite an existing run. To request a subset, repeat `--profiles`, for
-example `--profiles Flat00 --profiles Notch2K`. A short pipeline check uses
-`--max-updates 2`; reduced budgets and subsets cannot pass the full six-pattern
-reproduction verdict.
+The CLI discovers all folders containing `oae.npy`. Repeat `--profiles` to
+select particular folder names. It records the actual input SHA-256 hashes;
+no author-specific data manifest is required. It runs on CPU using float32
+and refuses to overwrite an existing run. Use `--max-updates 1` for a short
+pipeline check.
 
-Each pattern fits the 80 dB positive-polarity click, row **index 2** of the
-archived `(6, 2205)` array. The raw target slice is `[132:926]`, normalized by
+Each input fits an 80 dB positive-polarity click response, normalized by
 20 µPa. The model click has five nonzero samples preceded by 128 samples;
 those preceding samples are removed before starting the zero-state return
 path, and its fitting window is `[88:882]`.
@@ -119,30 +114,17 @@ and offset supply the impaired response. The original negative-gain floor,
 CF interpolation, and two nearest-neighbor target mappings are retained.
 These values describe **gain reduction**, not clinical hearing thresholds.
 
-## Artifacts and acceptance
+## Saved results
 
-The output includes `protocol.json` with input hashes, source provenance and
-runtime versions; a folder per pattern with all three parameter trees and
-loss histories; selected parameters; evaluation arrays; and TEOAE waveform
-and spectrum plots. `report.md`, `report.json`, and `gain-comparison.png`
-collect the Table 3.1 comparison and the six gain curves.
+`protocol.json` records the model configuration, training settings, runtime
+versions, and input and implementation hashes. Each input gets a folder with
+all three fitted parameter trees and loss histories, selected parameters,
+and `result.json`. With gain labels, it also contains `evaluation.npz` and
+all three error metrics. The top-level `report.json` collects these results.
 
-Every pattern must meet all three predeclared upper limits:
-
-| Pattern | Audiogram MAE (dB) | Time RMSE (mPa) | Spectrum MAE (dB) |
-|---|---:|---:|---:|
-| Flat00 | 1.40 | 0.662 | 3.68 |
-| Slope20 | 2.42 | 0.381 | 1.88 |
-| Slope30 | 3.67 | 0.322 | 1.97 |
-| Notch4K | 5.25 | 0.534 | 2.90 |
-| Notch3K | 2.65 | 0.338 | 4.26 |
-| Notch2K | 5.20 | 0.317 | 3.49 |
-
-These equal Table 3.1 plus 1 dB, 0.1 mPa, and 1 dB, respectively. Lower errors
-also pass. An unsuccessful full run exits nonzero after saving its report.
-The historical thesis fitted checkpoints are unavailable, so the comparison
-tests fresh-fit performance rather than identical historical parameter values.
-Input aliases, weights, and thresholds remain fixed when a case fails.
+Paper-specific reference scores, acceptance thresholds, plots, and the
+six-pattern reproduction driver are local benchmark tooling. They do not
+control the public CLI's results or exit status.
 
 ## Tests and local benchmarks
 
@@ -155,8 +137,8 @@ The regular suite uses synthetic inputs with readable expectations:
   winner by its last pre-update loss. These tests use SGD to make the
   arithmetic explicit; they test the fitting loop, not Adam convergence.
 
-The suite also checks the target window, acceptance limits, corrupted inputs,
-and incomplete-run verdicts. Run it with:
+The suite also checks pressure normalization, input selection and hashes, and a
+one-update CLI run with synthetic data and no gain labels. Run it with:
 
 ```bash
 uv run pytest tests/test_r_type_oae.py tests/test_teoae_fitting.py tests/test_teoae_cli.py
@@ -167,8 +149,6 @@ training are separate local benchmarks. Their fixtures, comparison tools,
 checkpoints, logs, and plots stay in Git-ignored local directories. Ordinary
 tests and CI do not require the author's source archive or private inputs.
 
-Record benchmark results in the pull request: the runtime versions, input and
-implementation hashes, original-code comparison tolerance, and all six
-patterns' three metrics and pass/fail verdicts. The fitting CLI above records
-the experiment under `output/`; its generated report supplies the result
-table. Distinguish these local results from the checks run by CI.
+Record local benchmark results in the pull request, together with the data
+and runtime details. Keep the original-code comparisons and six-pattern
+experiment separate from the ordinary checks run by CI.
