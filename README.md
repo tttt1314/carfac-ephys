@@ -241,6 +241,14 @@ uv run carfac-ephys-simulate --middle-ear Verhulst_2018 --output-dir output/
 
 ## 5. Contributing
 
+### R-type OAE and TEOAE personalization
+
+The differentiable reflection path and Jimmy Xu's thesis §3.4.1 fitting
+experiment are available through `carfac-ephys-fit-teoae`. See
+[the model, training recipe, and reproduction instructions](docs/r-type-oae.md)
+for verified private-input preparation, the six-pattern training command,
+and the fixed numerical acceptance criteria.
+
 ### Checks Every Pull Request Must Pass
 
 CI runs these checks on every pull request, and a pull request cannot merge until they pass. `uv sync` from the installation step already installs the tools.
