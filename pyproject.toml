@@ -14,10 +14,12 @@ dependencies = [
     "matplotlib>=3.8.0",
     "click>=8.1.0",
     "pytest>=8.0.0",
+    "optax>=0.2.8",
 ]
 
 [project.scripts]
 carfac-ephys-simulate = "carfac_ephys.cli:main"
+carfac-ephys-fit-teoae = "carfac_ephys.teoae_cli:main"
 
 [build-system]
 requires = ["hatchling"]

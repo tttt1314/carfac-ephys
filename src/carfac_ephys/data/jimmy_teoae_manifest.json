@@ -1,0 +1,74 @@
+{
+  "description": "Sealed inputs for fresh thesis-weight fits; author-native Flat00_Slope waveforms are deliberately preserved.",
+  "profiles": {
+    "Flat00": {
+      "oae": {
+        "source": "nas-research/jimmy-verhulst-reproduction-2026-10-18/targets/Flat00/oae.npy",
+        "sha256": "6110979fd7738cc2744c65b4972f1ae5d718cf024ff04ad224dda7f9177b0cd5"
+      },
+      "profile": {
+        "source": "nas-research/jimmy-verhulst-reproduction-2026-10-18/targets/Flat00/profile.txt",
+        "sha256": "920a2cfd91dc4a86726c2b276b98ba476ff2b92de1cb3990c7bfcf0300840abd"
+      }
+    },
+    "Slope20": {
+      "oae": {
+        "source": "nas-research/jimmy-carfac-teoae-2026-10-18/targets/Flat00_Slope20/oae.npy",
+        "sha256": "fb1533281a25f90072c241cc2b803746dcf288431d78fe0059f900b4b8bd24b9"
+      },
+      "profile": {
+        "source": "nas-research/jimmy-carfac-teoae-2026-10-18/targets/Flat00_Slope20/profile.txt",
+        "sha256": "364eaefe763a8b1ef1ee410caebc050c6f345a9fec3203f89f6ace64db0d4afa"
+      }
+    },
+    "Slope30": {
+      "oae": {
+        "source": "nas-research/jimmy-carfac-teoae-2026-10-18/targets/Flat00_Slope30/oae.npy",
+        "sha256": "0b3269415a434b0f43adcc1ee8dc0cc05695cd5979e872fa6574d005a1b45e6d"
+      },
+      "profile": {
+        "source": "nas-research/jimmy-carfac-teoae-2026-10-18/targets/Flat00_Slope30/profile.txt",
+        "sha256": "06f74b9cf357d329121534ff8152d985afdcfa5838815c534035088118fa7712"
+      }
+    },
+    "Notch4K": {
+      "oae": {
+        "source": "nas-research/jimmy-verhulst-reproduction-2026-10-18/targets/Notch4K/oae.npy",
+        "sha256": "ad4cd070bc153b6cfc10dd29057aaf25bc2346c8edd156cf70619dfdf603dd76"
+      },
+      "profile": {
+        "source": "nas-research/jimmy-verhulst-reproduction-2026-10-18/targets/Notch4K/profile.txt",
+        "sha256": "4a9b9ee7499b963de8ef817bbc0b2f6a512437710db65afe5b7faae1afaa2846"
+      }
+    },
+    "Notch3K": {
+      "oae": {
+        "source": "nas-research/jimmy-verhulst-reproduction-2026-10-18/targets/Notch3K/oae.npy",
+        "sha256": "84c9bd68d32f3340f6b257d4957c691c5cb6d70f5652193af5386d32f57e0359"
+      },
+      "profile": {
+        "source": "nas-research/jimmy-verhulst-reproduction-2026-10-18/targets/Notch3K/profile.txt",
+        "sha256": "995655d96c6c2f8de362f18f49a7a3781f6f17d493ac5b484fa91de5c3a6b81f"
+      }
+    },
+    "Notch2K": {
+      "oae": {
+        "source": "nas-research/jimmy-verhulst-reproduction-2026-10-18/targets/Notch2K/oae.npy",
+        "sha256": "0726ea813b48947ed315aabe53d057cd6b2daf83a25c8a14dca1bce4835a6e52"
+      },
+      "profile": {
+        "source": "nas-research/jimmy-verhulst-reproduction-2026-10-18/targets/Notch2K/profile.txt",
+        "sha256": "347e1a6d36779f87b5d91c166d3190e82ad2b81fa1138b5b02b799182f1be15d"
+      }
+    }
+  },
+  "author_source_sha256": {
+    "utils_carfac/carfac.py": "8c1d5ac16189fec5d110c3cc6d39d97f57137f07bc64d2f6c4f86d0358a77afd",
+    "utils_carfac/backward_lowpass.py": "6627cdacac8ff29beac50d9abc03f0f11bf92265d7e3d15ef51051abbdf570ab",
+    "utils_carfac/midearfilter.py": "6490de1e00a4504d159afdda304eac5e6acc8205faed8cf2f9dc8daf3550d3b3",
+    "utils_carfac/MultiResolutionSTFTLoss2.py": "e7d4a78418ae6cefabbac74e57b5fc920ce96bfb5270f0d6c2afe2fca18c3cc8",
+    "ablation_thesis/fitting_opt_ablation.py": "00b95eab4b148bcd3c995e6fe73e4f8af8e0e9c9f80c5693dd6187fa8b6ae323",
+    "ablation_thesis/Config.py": "956d9372608403ebcc73b8f92c8b534ca1f50d522ec87f04139fb67440448681"
+  },
+  "thesis_weights_sha256": "25473f7ebd101fd9ddfc402eb979d2df576e41911d676e7c6f4982b1673cc3d9"
+}
